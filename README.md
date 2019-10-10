@@ -9,4 +9,4 @@ ssltest works with Python version 2.7.x on any platform provided requests module
 python ssltest.py www.example.com
 
 # Screenshot
-![Alt text](/ssltest.png?raw=true "")
+![Alt text](/POC.png?raw=true "")
