@@ -1,49 +1,72 @@
-import requests
+import os
+import string
 import sys
 
 host_name = sys.argv[1]
-resp = requests.get("https://cryptoreport.websecurity.symantec.com/chainTester/webservice/validatecerts/json?domain="+host_name+"&port=443")
-x = resp.json()
+
+def get_cipher(c):
+	filtered_string = filter(lambda x: x in string.printable, c)
+	newstr = filtered_string.replace("[0m", "")
+	return newstr;
+
+cmd='pysslscan scan --scan=server.ciphers --scan=vuln.heartbleed --report=term --ssl2 --ssl3 --tls10 --tls11 --tls12 '+host_name
+s = os.popen(cmd).read()
+cipher = get_cipher(s)
+# convert to string array
+ciphers = cipher.split('\n')
+
 print("\r")
+welcome="SSL Configuration results for "+host_name+" domain"
+print welcome
+print("\r")
+
 print("Following are the Weak Ciphers used by Server:")
 print("\r")
-ciphers = x['sslConfig']['cipherSuites']
-checker = False
+
 poodle_check = False
-index = 0
-status = x['sslConfig']['Protocols']['sslv3Status']
-	
-for i in range(len(ciphers)):
-	if "DES" in ciphers[index]:
-		checker = True;
-	if "IDEA" in ciphers[index]:
-		checker = True;
-	if "DES" in ciphers[index]:
-		print(ciphers[index])
-	if "IDEA" in ciphers[index]:
-		print(ciphers[index])
-	if "RC4" in ciphers[index]:
-		print(ciphers[index])
-	if checker==False:
-		if "TLS_RSA" in ciphers[index]:
-			print(ciphers[index])
-	if ("CBC" in ciphers[index] and (status==True)):
-		poodle_check = True;
-	index += 1
-	
-print("\r")
-print("SSL is affected with following Vulnerabilities:")
-print("\r")
-print("HEARTBLEED Vulnerable:",x['sslConfig']['heartbleed'])
+check = False
+cipher = None
+beast=False
+heartbleed=False
+p=False
+
+#print type(ciphers)
+
+for i in ciphers:
+	if check==False:
+		if "TLSv10" in i:
+			beast=True
+			check=True
+	if "DES" in i:
+		p=True
+		print i
+	if "IDEA" in i:
+		p=True
+		print i
+	if "RC4" in i:
+		p=True
+		print i
+	if "CBC" in i:
+		p=True
+		print i
+	if p==False:
+		if "TLS_RSA" in i:
+			p=False
+			print i
+	if "SSLv3" in i:
+		if "CBC" in i:
+			poodle_check=True
+	if "Vulnerable: yes" in i:
+		heartbleed=True
+
+if beast:
+	print("\r")
+	print "TLS/SSL server uses TLSv1.0 which is vulnerable to BEAST attack"
+
 if poodle_check:
-	print("('POODLE (SSLv3) Vulnerable:', True)")
-else:
-	print("('POODLE (SSLv3) Vulnerable:', False)")
-print("POODLE (TLS) Vulnerable:",x['sslConfig']['poodletls'])
-print("FREAK Vulnerable:",x['sslConfig']['freak'])
-print("BEAST Vulnerable:",x['sslConfig']['beast'])
-print("CRIME Vulnerable:",x['sslConfig']['crime'])
-if checker:
-	print("('SWEET32 Vulnerable:', True)")
-else:
-	print("('SWEET32 Vulnerable:', False)")
+	print("\r")
+	print "TLS/SSL uses SSLv3 with CBC mode which is vulnerable to POODLE attack"
+
+if heartbleed:
+	print("\r")
+	print "TLS/SSL Server is vulnerable to Heartbleed attack"
